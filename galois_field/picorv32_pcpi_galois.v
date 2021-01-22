@@ -13,31 +13,32 @@ module picorv32_pcpi_galois #(
 	output reg        pcpi_ready
 );
 
-	parameter [6:0] OPCODE_R = 7'b0110011;
-	parameter [6:0] FUNCT7_R = 7'b0000100;
+	parameter [6:0] OPCODE_R 	= 7'b0110011;
+	parameter [6:0] FUNCT7_R 	= 7'b0000100;
+	parameter [6:0] FUNCT7_RH 	= 7'b0000101;
 
-	parameter [6:0] OPCODE_S = 7'b0100011;
-	parameter [2:0] FUNCT3_S = 3'b100;
+	parameter [6:0] OPCODE_S	= 7'b0100011;
+	parameter [2:0] FUNCT3_S 	= 3'b100;
 	
 
-	reg instr_glwidth, instr_gladd, instr_glmul, instr_glred;
-	wire instr_op = 	|{instr_gladd, instr_glmul, instr_glred};
-	wire instr_any = 	|{instr_glwidth, instr_op};
+	reg 	instr_glwidth, instr_gladd, instr_glmul, instr_glred, instr_mul;
+	wire	instr_op = 	|{instr_gladd, instr_glmul, instr_glred, instr_mul};
+	wire 	instr_any = |{instr_glwidth, instr_op};
 
-	reg width_flag;
-	reg width_finish;
+	reg 	width_flag;
+	reg 	width_finish;
+	wire	alu_finish = |{width_finish, op_finish};
 
 
 	/******************************************************************************************
 	*********************************** Module instantiation **********************************
 	******************************************************************************************/
-
 	reg 							op_enable;
 	wire 							op_finish;
 	reg 							sum_funct, exp_funct, red_funct, carry_option;
 	reg  [$clog2(DATA_WIDTH):0] 	in_width; 
 	reg  [DATA_WIDTH:0]         	polyn_red_in;
-	wire [2*DATA_WIDTH-1:0]        	reduc_in;
+	reg  [2*DATA_WIDTH-1:0]        	reduc_in;
 	reg  [DATA_WIDTH-1:0]          	in_a, in_b;
 	wire [DATA_WIDTH-1:0]     		out;                // Salida normal
     wire [DATA_WIDTH-1:0]     		out_poly;           // Salida poly
@@ -92,6 +93,12 @@ module picorv32_pcpi_galois #(
 		instr_glmul		<= 0;
 		instr_gladd		<= 0;
 		instr_glred		<= 0;
+		instr_mul		<= 0;
+		
+		pcpi_wait		<= 0;
+		pcpi_wr 		<= 0;
+		pcpi_ready 		<= 0;
+		pcpi_rd 		<= 0;
 
 		if (resetn && pcpi_valid && pcpi_insn[6:0] == OPCODE_S && pcpi_insn[14:12] == FUNCT3_S) begin
 			instr_glwidth <= 1;
@@ -102,19 +109,25 @@ module picorv32_pcpi_galois #(
 				3'b000: instr_glmul <= 1;
 				3'b001: instr_gladd <= 1;
 				3'b010: instr_glred <= 1;
+				3'b100: instr_mul 	<= 1;
 			endcase
 		end
 
-		pcpi_wait <= instr_any;
+		if(op_finish && pcpi_valid) begin
+			pcpi_wr <= 1;
+			case (pcpi_insn[14:12])
+				3'b000: pcpi_rd <= out_mult[(DATA_WIDTH/2)-1:0];
+				3'b001: pcpi_rd <= out;
+				3'b010: pcpi_rd <= out_poly;
+				3'b100: pcpi_rd <= out_mult[(DATA_WIDTH/2)-1:0];
+			endcase
+		end
+
+		op_enable 	<= instr_op && pcpi_valid;
+		pcpi_wait 	<= instr_any;
+		pcpi_ready  <= alu_finish && pcpi_valid;
 	end
 
-	// PCPI ready signal
-	always @(width_finish) begin
-		if(!width_finish)
-			pcpi_ready <= 0;
-		else 
-			pcpi_ready <= 1;
-	end
 
 	/******************************************************************************************
 	***************************************** GL WIDTH ****************************************
@@ -123,7 +136,6 @@ module picorv32_pcpi_galois #(
 		if(!resetn) begin
 			in_width 		<= DATA_WIDTH;
 			polyn_red_in 	<= 0;
-
 			width_finish	<= 0;
 		end
 		if(instr_glwidth && pcpi_valid) begin
@@ -138,7 +150,12 @@ module picorv32_pcpi_galois #(
 	/******************************************************************************************
 	************************************** GL Operations **************************************
 	******************************************************************************************/
-
-
+	always @(posedge clk) begin
+		if(!resetn)
+			reduc_in <= 0;			
+		else if(op_finish && instr_glmul) begin
+			reduc_in <= out_mult;
+		end
+	end
 
 endmodule 
