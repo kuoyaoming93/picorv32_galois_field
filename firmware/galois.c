@@ -1,3 +1,50 @@
+#include "firmware.h"
+
+#define COEFFS 8
+
+int horner_test(void) 
+{
+    uint8_t coeff[COEFFS+1]; //= {255, 55, 22, 13, 64, 152, 30, 220, 110};
+    coeff[0] = 255;
+    coeff[1] = 55;
+    coeff[2] = 22;
+    coeff[3] = 13;
+    coeff[4] = 64;
+    coeff[5] = 152;
+    coeff[6] = 30;
+    coeff[7] = 220;
+    coeff[8] = 110;
+
+    uint8_t point = 43 * 2;
+
+    print_str("Algoritmo de Horner\n");
+    print_str("-------------------\n\n");
+    print_str("Los coeficientes del polinomio de grado 8 son: ");
+    int i = 0;
+    for(i=0; i <= COEFFS; i++){
+        print_dec(coeff[i]);
+        print_str(" ");
+    }
+        
+    print_str("\n");
+    print_str("Se evalua en el punto ");
+    print_dec(point);
+    print_str("\n");
+
+    uint8_t result = horner(coeff, point);
+    print_str("Resultado: ");
+    print_dec(result);
+    print_str("\n");
+
+    print_str("\n");
+    print_str("Multiplicacion: ");
+    print_dec(point*result);
+    print_str("\n");
+
+    return 0;//result;
+}
+
+
 /* Add two numbers in the GF(2^8) finite field */
 uint8_t gadd(uint8_t a, uint8_t b) {
 	return a ^ b;
@@ -22,3 +69,18 @@ uint8_t gmul(uint8_t a, uint8_t b) {
 	}
 	return p;
 }
+
+uint8_t horner(uint8_t coeff[], uint8_t point)
+{
+    int i = 0;
+    uint8_t bx[COEFFS+1];
+
+    for (i = 0 ; i <= COEFFS; i++){
+        if(i == 0)
+            bx[0] = coeff[0];
+        else 
+            bx[i] = gadd(coeff[i], gmul(bx[i-1], point));
+    }
+    return bx[COEFFS];
+}
+

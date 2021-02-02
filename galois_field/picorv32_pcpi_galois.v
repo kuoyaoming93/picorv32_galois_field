@@ -14,20 +14,27 @@ module picorv32_pcpi_galois #(
 );
 
 	parameter [6:0] OPCODE_R 	= 7'b0110011;
-	parameter [6:0] FUNCT7_R 	= 7'b0000100;
-	parameter [6:0] FUNCT7_RH 	= 7'b0000101;
+	parameter [6:0] FUNCT7_G 	= 7'b0000100;
+	parameter [6:0] FUNCT7_M 	= 7'b0000001;
 
 	parameter [6:0] OPCODE_S	= 7'b0100011;
 	parameter [2:0] FUNCT3_S 	= 3'b100;
 	
 
-	reg 	instr_glwidth, instr_gladd, instr_glmul, instr_glred, instr_mul;
-	wire	instr_op = 	|{instr_gladd, instr_glmul, instr_glred, instr_mul};
-	wire 	instr_any = |{instr_glwidth, instr_op};
+	reg  	[DATA_WIDTH-1:0] rs1_mult_prev, rs2_mult_prev;
+	reg 	[2*DATA_WIDTH-1:0] mult_result_prev;
+	reg 	instr_glwidth, instr_red, instr_cmul, instr_cmulh, instr_mul, instr_mulh, instr_mulhu, instr_mulhsu;
+	wire	instr_op = 	|{instr_red, instr_op_h};
+	wire    instr_op_h = |{instr_mulh, instr_mulhu, instr_mulhsu, instr_cmulh};
+	wire 	instr_op_l = |{instr_cmul, instr_mul};
+	wire 	instr_any = |{instr_glwidth, instr_op, instr_op_l};
+	wire    instr_gf = |{instr_glwidth, instr_red, instr_cmul, instr_cmulh};
+	wire 	instr_rs1_signed = |{instr_mulh, instr_mulhsu};
+	wire 	instr_rs2_signed = |{instr_mulh};
 
 	reg 	width_flag;
-	reg 	width_finish;
-	wire	alu_finish = |{width_finish, op_finish};
+	reg 	width_finish, op_finish_l;
+	wire	alu_finish = |{width_finish, op_finish, op_finish_l};
 
 
 	/******************************************************************************************
@@ -75,13 +82,22 @@ module picorv32_pcpi_galois #(
 		in_a 			<= 0;
 		in_b 			<= 0;
 
-		if(instr_op) begin
-			carry_option 	<= pcpi_insn[14];
-			red_funct 		<= pcpi_insn[13];
-			sum_funct 		<= pcpi_insn[12];
+		if(!resetn) begin
+			rs1_mult_prev 	<= 0;
+			rs2_mult_prev 	<= 0;
+		end
 
-			in_a			<= pcpi_rs1;
-			in_b 			<= pcpi_rs2;
+		if(instr_op || mul_not_equal) begin
+			carry_option 	<= ~pcpi_insn[27];
+			red_funct 		<= instr_gf ? pcpi_insn[12] : 0;
+
+			in_a			<= instr_rs1_signed ? $signed(pcpi_rs1) : $unsigned(pcpi_rs1);
+			in_b 			<= instr_rs2_signed ? $signed(pcpi_rs2) : $unsigned(pcpi_rs2);
+		end
+
+		if(instr_op_h) begin 
+			rs1_mult_prev	<= pcpi_rs1;
+			rs2_mult_prev 	<= pcpi_rs2;
 		end
 	end
 
@@ -90,42 +106,95 @@ module picorv32_pcpi_galois #(
 	******************************************************************************************/
 	always @(posedge clk) begin
 		instr_glwidth 	<= 0;
-		instr_glmul		<= 0;
-		instr_gladd		<= 0;
-		instr_glred		<= 0;
-		instr_mul		<= 0;
+		instr_red		<= 0;
+		instr_cmul		<= 0;
+		instr_cmulh		<= 0;
+		instr_mul 		<= 0;
+		instr_mulh		<= 0;
+		instr_mulhsu 	<= 0;
+		instr_mulhu 	<= 0;
 		
 		pcpi_wait		<= 0;
 		pcpi_wr 		<= 0;
 		pcpi_ready 		<= 0;
 		pcpi_rd 		<= 0;
 
+		if(!resetn)
+			mult_result_prev <= 0;
+
 		if (resetn && pcpi_valid && pcpi_insn[6:0] == OPCODE_S && pcpi_insn[14:12] == FUNCT3_S) begin
 			instr_glwidth <= 1;
 		end
 
-		if (resetn && pcpi_valid && pcpi_insn[6:0] == OPCODE_R && pcpi_insn[31:25] == FUNCT7_R) begin
-			case (pcpi_insn[14:12])
-				3'b000: instr_glmul <= 1;
-				3'b001: instr_gladd <= 1;
-				3'b010: instr_glred <= 1;
-				3'b100: instr_mul 	<= 1;
-			endcase
+		if (resetn && pcpi_valid && pcpi_insn[6:0] == OPCODE_R) begin
+			if(pcpi_insn[31:25] == FUNCT7_G) begin
+				case (pcpi_insn[14:12])
+					3'b000: instr_cmul 	<= 1;
+					3'b001: instr_red 	<= 1;
+					3'b010: instr_cmulh <= 1;
+				endcase
+			end
+
+			if(pcpi_insn[31:25] == FUNCT7_M) begin
+				case (pcpi_insn[14:12])
+					3'b000: instr_mul <= 1;
+					3'b001: instr_mulh <= 1;
+					3'b010: instr_mulhsu <= 1;
+					3'b011: instr_mulhu <= 1;
+				endcase
+			end
 		end
 
-		if(op_finish && pcpi_valid) begin
+		if((op_finish||op_finish_l) && pcpi_valid) begin
 			pcpi_wr <= 1;
-			case (pcpi_insn[14:12])
-				3'b000: pcpi_rd <= out_mult[(DATA_WIDTH/2)-1:0];
-				3'b001: pcpi_rd <= out;
-				3'b010: pcpi_rd <= out_poly;
-				3'b100: pcpi_rd <= out_mult[(DATA_WIDTH/2)-1:0];
-			endcase
+			
+			if(pcpi_insn[31:25] == FUNCT7_G) begin
+				case (pcpi_insn[14:12])
+					3'b000: pcpi_rd 			<= mul_not_equal ? out_mult[(2*DATA_WIDTH/2)-1:0] : mult_result_prev[(2*DATA_WIDTH/2)-1:0]; 
+					3'b001: pcpi_rd 			<= out_poly;
+					3'b010: begin
+						pcpi_rd 				<= out_mult[2*DATA_WIDTH-1:(2*DATA_WIDTH/2)];
+						mult_result_prev 		<= out_mult;
+					end
+				endcase
+			end
+
+			if(pcpi_insn[31:25] == FUNCT7_M) begin
+				case (pcpi_insn[14:12])
+					3'b000: pcpi_rd 			<= mul_not_equal ? out_mult[(2*DATA_WIDTH/2)-1:0] : mult_result_prev[(2*DATA_WIDTH/2)-1:0]; 
+					default: begin 
+						pcpi_rd 				<= out_mult[2*DATA_WIDTH-1:(2*DATA_WIDTH/2)];
+						mult_result_prev 		<= out_mult;						 
+					end
+				endcase
+			end
 		end
 
-		op_enable 	<= instr_op && pcpi_valid;
+		op_enable 	<= (instr_op || mul_not_equal) && pcpi_valid;
 		pcpi_wait 	<= instr_any;
 		pcpi_ready  <= alu_finish && pcpi_valid;
+	end
+
+	/******************************************************************************************
+	************************************** Low Part Instr *************************************
+	******************************************************************************************/
+	reg mul_not_equal;
+
+	always @(posedge clk) begin
+		if(!resetn) begin
+			op_finish_l		<= 0;
+			mul_not_equal	<= 0;
+		end
+		if(instr_op_l && pcpi_valid) begin
+			if((pcpi_rs1 == rs1_mult_prev) && (pcpi_rs2 == rs2_mult_prev))
+				op_finish_l		<= 1;
+			else 
+				mul_not_equal	<= 1;
+		end else begin
+			op_finish_l			<= 0;
+			mul_not_equal		<= 0;
+		end
+
 	end
 
 
@@ -153,7 +222,7 @@ module picorv32_pcpi_galois #(
 	always @(posedge clk) begin
 		if(!resetn)
 			reduc_in <= 0;			
-		else if(op_finish && instr_glmul) begin
+		else if(op_finish && instr_red) begin
 			reduc_in <= out_mult;
 		end
 	end
