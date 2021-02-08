@@ -16,8 +16,6 @@ module picorv32_pcpi_galois #(
 	parameter [6:0] OPCODE_R 	= 7'b0110011;
 	parameter [6:0] FUNCT7_G 	= 7'b0000100;
 	parameter [6:0] FUNCT7_M 	= 7'b0000001;
-
-	parameter [6:0] OPCODE_S	= 7'b0100011;
 	parameter [2:0] FUNCT3_S 	= 3'b100;
 	
 
@@ -93,6 +91,7 @@ module picorv32_pcpi_galois #(
 
 			in_a			<= instr_rs1_signed ? $signed(pcpi_rs1) : $unsigned(pcpi_rs1);
 			in_b 			<= instr_rs2_signed ? $signed(pcpi_rs2) : $unsigned(pcpi_rs2);
+			reduc_in		<= {pcpi_rs1,pcpi_rs2};
 		end
 
 		if(instr_op_h) begin 
@@ -122,16 +121,13 @@ module picorv32_pcpi_galois #(
 		if(!resetn)
 			mult_result_prev <= 0;
 
-		if (resetn && pcpi_valid && pcpi_insn[6:0] == OPCODE_S && pcpi_insn[14:12] == FUNCT3_S) begin
-			instr_glwidth <= 1;
-		end
-
 		if (resetn && pcpi_valid && pcpi_insn[6:0] == OPCODE_R) begin
 			if(pcpi_insn[31:25] == FUNCT7_G) begin
 				case (pcpi_insn[14:12])
-					3'b000: instr_cmul 	<= 1;
-					3'b001: instr_red 	<= 1;
-					3'b010: instr_cmulh <= 1;
+					3'b000: instr_cmul 		<= 1;
+					3'b001: instr_red 		<= 1;
+					3'b010: instr_cmulh 	<= 1;
+					3'b100: instr_glwidth	<= 1;
 				endcase
 			end
 
@@ -196,7 +192,6 @@ module picorv32_pcpi_galois #(
 		end
 
 	end
-
 
 	/******************************************************************************************
 	***************************************** GL WIDTH ****************************************

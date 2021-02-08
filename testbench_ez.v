@@ -22,7 +22,7 @@ module testbench;
 		end
 		repeat (100) @(posedge clk);
 		resetn <= 1;
-		repeat (200) @(posedge clk);
+		repeat (300) @(posedge clk);
 		$finish;
 	end
 
@@ -105,38 +105,36 @@ module testbench;
 	parameter [6:0] FUNCT7_R = 7'b0000001;
 	parameter [6:0] FUNCT7_G = 7'b0000100;
 
-	/*parameter [6:0] OPCODE_S = 7'b0100011;
-	parameter [2:0] FUNCT3_S = 3'b100;*/
 
 	initial begin
-		
+
 		// MULT
 		reg1 = 12'h743;
 		reg2 = 12'h7fe;
-		memory[0] = {reg1,8'b0,5'd1,7'b0010011};    			//      li      x1,d3
-		memory[1] = {reg2,8'b0,5'd2,7'b0010011};    			//      li      x2,d4
-		memory[2] = {FUNCT7_R,5'd2,5'd1,3'd1,5'd4,OPCODE_R};	// 		Multiplication		= 743*7FE = 3A097A
-		memory[3] = {FUNCT7_R,5'd2,5'd1,3'd0,5'd4,OPCODE_R};	// 		Multiplication		= 743*7FE = 3A097A
-		memory[4] = {FUNCT7_R,5'd4,5'd4,3'd1,5'd5,OPCODE_R};	// 		Multiplication		= 3A097A * 3A097A = D284BA1CE24
-		memory[5] = {FUNCT7_R,5'd4,5'd4,3'd0,5'd5,OPCODE_R};	// 		Multiplication		= 3A097A * 3A097A = D284BA1CE24
+		memory[3] = {reg1,8'b0,5'd1,7'b0010011};    			//      li      	x1,h743
+		memory[4] = {reg2,8'b0,5'd2,7'b0010011};    			//      li      	x2,h7fe
+		memory[5] = {FUNCT7_R,5'd2,5'd1,3'd1,5'd4,OPCODE_R};	// 		MULH		= 743*7FE = 3A097A
+		memory[6] = {FUNCT7_R,5'd2,5'd1,3'd0,5'd4,OPCODE_R};	// 		MUL			= 743*7FE = 3A097A
+		memory[7] = {FUNCT7_R,5'd4,5'd4,3'd1,5'd5,OPCODE_R};	// 		MULH		= 3A097A * 3A097A = D284BA1CE24
+		memory[8] = {FUNCT7_R,5'd4,5'd4,3'd0,5'd5,OPCODE_R};	// 		MUL			= 3A097A * 3A097A = D284BA1CE24
 
 		// GL MULT
-		reg1 = 12'b1010;
-		reg2 = 12'b1110;
-		memory[6] = {reg1,8'b0,5'd1,7'b0010011};    			//      li      x1,b1010
-		memory[7] = {reg2,8'b0,5'd2,7'b0010011};    			//      li      x2,b1110
-		memory[8] = {FUNCT7_G,5'd2,5'd1,3'd2,5'd3,OPCODE_R};	// 		Carry less multiplication
-		memory[9] = {FUNCT7_G,5'd2,5'd1,3'd0,5'd3,OPCODE_R};	// 		Carry less multiplication
-		
-		/*
-		memory[9] = {FUNCT7_G,5'd2,5'd1,3'd2,5'd3,OPCODE_R};	// 		Polynomial reduction
-		
+		reg1 = 12'b1110;
+		reg2 = 12'b1111;
+		memory[9] = {reg1,8'b0,5'd1,7'b0010011};    			//      li      x1,b1010
+		memory[10] = {reg2,8'b0,5'd2,7'b0010011};    			//      li      x2,b1110
+		memory[11] = {FUNCT7_G,5'd2,5'd1,3'd2,5'd3,OPCODE_R};	// 		CLMULH
+		memory[12] = {FUNCT7_G,5'd2,5'd1,3'd0,5'd4,OPCODE_R};	// 		CLMUL
+
+		// GL WIDTH
 		reg1 = 12'd4;
-		reg2 = 12'b11001;
-		memory[0] = {reg1,8'b0,5'd1,7'b0010011};    			//      li      x1,31
-		memory[1] = {reg2,8'b0,5'd2,7'b0010011};    			//      li      x2,1020
-        memory[2] = 32'h 0020c023;								// 		GL WIDTH X1 -> width X2 -> reduc
-*/
+		reg2 = 12'b10011;
+		memory[13] = {reg1,8'b0,5'd1,7'b0010011};    			//      li      	x1,d31
+		memory[14] = {reg2,8'b0,5'd2,7'b0010011};    			//      li      	x2,b11001
+		memory[15] = {FUNCT7_G,5'd2,5'd1,3'd4,5'd3,OPCODE_R};	// 		GLWIDTH
+
+		memory[16] = {FUNCT7_G,5'd4,5'd3,3'd1,5'd5,OPCODE_R};	// 		Polynomial reduction
+	
 
 	end
 
