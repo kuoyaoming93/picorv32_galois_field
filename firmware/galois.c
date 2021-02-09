@@ -16,6 +16,7 @@ int horner_test(void)
     coeff[8] = 110;
 
     uint8_t point = 43 * 2;
+    uint8_t result = horner(coeff, point);
 
     print_str("Algoritmo de Horner\n");
     print_str("-------------------\n\n");
@@ -31,7 +32,6 @@ int horner_test(void)
     print_dec(point);
     print_str("\n");
 
-    uint8_t result = horner(coeff, point);
     print_str("Resultado: ");
     print_dec(result);
     print_str("\n");
