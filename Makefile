@@ -4,9 +4,9 @@ VVP = vvp$(ICARUS_SUFFIX)
 PYTHON = python3
 
 RISCV_GNU_TOOLCHAIN_INSTALL_PREFIX = /opt/riscv32
-TOOLCHAIN_PREFIX = $(RISCV_GNU_TOOLCHAIN_INSTALL_PREFIX)i/bin/riscv32-unknown-elf-
+TOOLCHAIN_PREFIX = $(RISCV_GNU_TOOLCHAIN_INSTALL_PREFIX)gc/bin/riscv32-unknown-elf-
 COMPRESSED_ISA = #C
-GCC_FLAGS = -Os -ffreestanding -nostdlib
+GCC_FLAGS = -ffreestanding -nostdlib -O2
 
 VERILOG_SOURCES = picorv/picorv32.v galois_field/picorv32_pcpi_galois.v galois_field/cl_modules/cl_modules.v \
 					galois_field/cl_modules/cl_rca_adder.v galois_field/cl_modules/cl_half_adder.v \
@@ -14,7 +14,7 @@ VERILOG_SOURCES = picorv/picorv32.v galois_field/picorv32_pcpi_galois.v galois_f
 					galois_field/cl_modules/bit_order_inversion.v
 
 TEST_OBJS = #$(addsuffix .o,$(basename $(wildcard tests/*.S)))
-FIRMWARE_OBJS = firmware/start.o firmware/galois.o firmware/print.o firmware/irq.o
+FIRMWARE_OBJS = firmware/start.o firmware/galois.o #firmware/print.o #firmware/irq.o
 
 test: testbench.vvp firmware/firmware.hex 
 	$(VVP) -N $<
@@ -51,10 +51,10 @@ firmware/firmware.elf: $(FIRMWARE_OBJS) $(TEST_OBJS) picorv/firmware/sections.ld
 	chmod -x $@
 
 firmware/start.o: firmware/start.S
-	$(TOOLCHAIN_PREFIX)gcc -c -march=rv32im$(subst C,c,$(COMPRESSED_ISA)) -o $@ $<
+	$(TOOLCHAIN_PREFIX)gcc -c -march=rv32im$(subst C,c,$(COMPRESSED_ISA)) -mabi=ilp32 -o $@ $<
 
 firmware/%.o: firmware/%.c
-	$(TOOLCHAIN_PREFIX)gcc -c -march=rv32im$(subst C,c,$(COMPRESSED_ISA)) --std=c99 $(GCC_WARNS) $(GCC_FLAGS) -o $@ $<
+	$(TOOLCHAIN_PREFIX)gcc -c -march=rv32im$(subst C,c,$(COMPRESSED_ISA)) -mabi=ilp32 $(GCC_WARNS) $(GCC_FLAGS) -o $@ $<
 
 clean:
 	rm -vrf testbench_ez.vvp testbench.vcd 
@@ -64,3 +64,5 @@ clean:
 		testbench.vcd 
 
 .PHONY: test test_ez test_ez_vcd  clean
+
+# elf2hex 4 32768 firmware/firmware.elf > firmware/obj.hex

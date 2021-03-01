@@ -10,7 +10,8 @@
 `ifndef VERILATOR
 module testbench #(
 	parameter AXI_TEST = 0,
-	parameter VERBOSE = 0
+	parameter VERBOSE = 0,
+	parameter COUNT_INSN = 1
 );
 	reg clk = 1;
 	reg resetn = 0;
@@ -52,8 +53,9 @@ module testbench #(
 	end
 
 	picorv32_wrapper #(
-		.AXI_TEST (AXI_TEST),
-		.VERBOSE  (VERBOSE)
+		.AXI_TEST 	(AXI_TEST),
+		.VERBOSE   	(VERBOSE),
+		.COUNT_INSN	(COUNT_INSN)
 	) top (
 		.clk(clk),
 		.resetn(resetn),
@@ -66,7 +68,8 @@ endmodule
 
 module picorv32_wrapper #(
 	parameter AXI_TEST = 0,
-	parameter VERBOSE = 0
+	parameter VERBOSE = 0,
+	parameter COUNT_INSN = 0
 ) (
 	input clk,
 	input resetn,
@@ -109,8 +112,9 @@ module picorv32_wrapper #(
 	wire [31:0] mem_axi_rdata;
 
 	axi4_memory #(
-		.AXI_TEST (AXI_TEST),
-		.VERBOSE  (VERBOSE)
+		.AXI_TEST 	(AXI_TEST),
+		.VERBOSE  	(VERBOSE),
+		.COUNT_INSN	(COUNT_INSN)
 	) mem (
 		.clk             (clk             ),
 		.mem_axi_awvalid (mem_axi_awvalid ),
@@ -314,7 +318,8 @@ endmodule
 
 module axi4_memory #(
 	parameter AXI_TEST = 0,
-	parameter VERBOSE = 0
+	parameter VERBOSE = 0,
+	parameter COUNT_INSN = 0
 ) (
 	/* verilator lint_off MULTIDRIVEN */
 
@@ -344,8 +349,12 @@ module axi4_memory #(
 	output reg        tests_passed
 );
 	reg [31:0]   memory [0:128*1024/4-1] /* verilator public */;
-	reg verbose;
+	reg verbose, count_insn;
 	initial verbose = $test$plusargs("verbose") || VERBOSE;
+	initial count_insn = $test$plusargs("count_insn") || COUNT_INSN;
+	
+	integer insn_counter;
+	initial insn_counter = 0;
 
 	reg axi_test;
 	initial axi_test = $test$plusargs("axi_test") || AXI_TEST;
@@ -419,8 +428,12 @@ module axi4_memory #(
 	end endtask
 
 	task handle_axi_rvalid; begin
-		if (verbose)
-			$display("RD: ADDR=%08x DATA=%08x%s", latched_raddr, memory[latched_raddr >> 2], latched_rinsn ? " INSN" : "");
+		if (verbose) begin
+			if (count_insn && latched_rinsn)
+				insn_counter++;
+			$display("RD: ADDR=%08x DATA=%08x%s %1d ", latched_raddr, memory[latched_raddr >> 2], latched_rinsn ? " INSN" : "",insn_counter);
+		end 
+		
 		if (latched_raddr < 128*1024) begin
 			mem_axi_rdata <= memory[latched_raddr >> 2];
 			mem_axi_rvalid <= 1;

@@ -87,7 +87,7 @@ module picorv32_pcpi_galois #(
 
 		if(instr_op || mul_not_equal) begin
 			carry_option 	<= ~pcpi_insn[27];
-			red_funct 		<= instr_gf ? pcpi_insn[12] : 0;
+			red_funct 		<= instr_gf ? pcpi_insn[13] : 0;
 
 			in_a			<= instr_rs1_signed ? $signed(pcpi_rs1) : $unsigned(pcpi_rs1);
 			in_b 			<= instr_rs2_signed ? $signed(pcpi_rs2) : $unsigned(pcpi_rs2);
@@ -125,8 +125,8 @@ module picorv32_pcpi_galois #(
 			if(pcpi_insn[31:25] == FUNCT7_G) begin
 				case (pcpi_insn[14:12])
 					3'b000: instr_cmul 		<= 1;
-					3'b001: instr_red 		<= 1;
-					3'b010: instr_cmulh 	<= 1;
+					3'b001: instr_cmulh 	<= 1;
+					3'b010: instr_red 		<= 1;
 					3'b100: instr_glwidth	<= 1;
 				endcase
 			end
@@ -147,11 +147,11 @@ module picorv32_pcpi_galois #(
 			if(pcpi_insn[31:25] == FUNCT7_G) begin
 				case (pcpi_insn[14:12])
 					3'b000: pcpi_rd 			<= mul_not_equal ? out_mult[(2*DATA_WIDTH/2)-1:0] : mult_result_prev[(2*DATA_WIDTH/2)-1:0]; 
-					3'b001: pcpi_rd 			<= out_poly;
-					3'b010: begin
+					3'b001: begin
 						pcpi_rd 				<= out_mult[2*DATA_WIDTH-1:(2*DATA_WIDTH/2)];
 						mult_result_prev 		<= out_mult;
 					end
+					3'b010: pcpi_rd 			<= out_poly;
 				endcase
 			end
 

@@ -130,7 +130,7 @@ module testbench;
 		reg1 = 12'd4;
 		reg2 = 12'b10011;
 		memory[10] = {reg1,8'b0,5'd1,7'b0010011};    			//      li      	x1,d4
-		memory[11] = {reg2,8'b0,5'd2,7'b0010011};    			//      li      	x2,b11001
+		memory[11] = {reg2,8'b0,5'd2,7'b0010011};    			//      li      	x2,b10011
 		memory[12] = {FUNCT7_G,5'd2,5'd1,3'd4,5'd3,OPCODE_R};	// 		GLWIDTH
 		memory[13] = {FUNCT7_G,5'd4,5'd3,3'd1,5'd5,OPCODE_R};	// 		Polynomial reduction
 	
