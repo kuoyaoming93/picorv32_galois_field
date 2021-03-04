@@ -3,10 +3,10 @@ IVERILOG = iverilog$(ICARUS_SUFFIX)
 VVP = vvp$(ICARUS_SUFFIX)
 PYTHON = python3
 
-RISCV_GNU_TOOLCHAIN_INSTALL_PREFIX = /opt/riscv32
-TOOLCHAIN_PREFIX = $(RISCV_GNU_TOOLCHAIN_INSTALL_PREFIX)gc/bin/riscv32-unknown-elf-
+RISCV_GNU_TOOLCHAIN_INSTALL_PREFIX = /opt/riscv
+TOOLCHAIN_PREFIX = $(RISCV_GNU_TOOLCHAIN_INSTALL_PREFIX)/bin/riscv64-unknown-elf-
 COMPRESSED_ISA = #C
-GCC_FLAGS = -ffreestanding -nostdlib -O2
+GCC_FLAGS = -ffreestanding -nostdlib -Os
 
 VERILOG_SOURCES = picorv/picorv32.v galois_field/picorv32_pcpi_galois.v galois_field/cl_modules/cl_modules.v \
 					galois_field/cl_modules/cl_rca_adder.v galois_field/cl_modules/cl_half_adder.v \
@@ -14,7 +14,7 @@ VERILOG_SOURCES = picorv/picorv32.v galois_field/picorv32_pcpi_galois.v galois_f
 					galois_field/cl_modules/bit_order_inversion.v
 
 TEST_OBJS = #$(addsuffix .o,$(basename $(wildcard tests/*.S)))
-FIRMWARE_OBJS = firmware/start.o firmware/galois.o #firmware/print.o #firmware/irq.o
+FIRMWARE_OBJS = firmware/start.o firmware/galois.o firmware/print.o #firmware/irq.o
 
 test: testbench.vvp firmware/firmware.hex 
 	$(VVP) -N $<
@@ -46,7 +46,7 @@ firmware/firmware.bin: firmware/firmware.elf
 
 firmware/firmware.elf: $(FIRMWARE_OBJS) $(TEST_OBJS) picorv/firmware/sections.lds
 	$(TOOLCHAIN_PREFIX)gcc $(GCC_FLAGS) -o $@ \
-		-Wl,-Bstatic,-T,picorv/firmware/sections.lds,-Map,firmware/firmware.map,--strip-debug \
+		-Wl,-Bstatic,-m,elf32lriscv -Wl,-T,picorv/firmware/sections.lds,-Map,firmware/firmware.map,--strip-debug \
 		$(FIRMWARE_OBJS) $(TEST_OBJS) -lgcc
 	chmod -x $@
 

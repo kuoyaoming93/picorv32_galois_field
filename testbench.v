@@ -10,7 +10,7 @@
 `ifndef VERILATOR
 module testbench #(
 	parameter AXI_TEST = 0,
-	parameter VERBOSE = 0,
+	parameter VERBOSE = 1,
 	parameter COUNT_INSN = 1
 );
 	reg clk = 1;
